@@ -9,6 +9,7 @@ Basedataset class for all kinds of fusion.
 import os
 import math
 from collections import OrderedDict
+import random
 
 import torch
 import numpy as np
@@ -19,7 +20,6 @@ from opencood.data_utils.augmentor.data_augmentor import DataAugmentor
 from opencood.hypes_yaml.yaml_utils import load_yaml
 from opencood.utils.pcd_utils import downsample_lidar_minimum
 from opencood.utils.transformation_utils import x1_to_x2
-
 
 class BaseDataset(Dataset):
     """
@@ -64,141 +64,213 @@ class BaseDataset(Dataset):
 
         self.pre_processor = None
         self.post_processor = None
-        self.data_augmentor = DataAugmentor(params['data_augment'],
-                                            train)
+        self.data_augmentor = DataAugmentor(params['data_augment'], train)
 
-        # if the training/testing include noisy setting
         if 'wild_setting' in params:
             self.seed = params['wild_setting']['seed']
-            # whether to add time delay
             self.async_flag = params['wild_setting']['async']
-            self.async_mode = \
-                'sim' if 'async_mode' not in params['wild_setting'] \
-                    else params['wild_setting']['async_mode']
+            self.async_mode = 'sim' if 'async_mode' not in params['wild_setting'] else params['wild_setting']['async_mode']
             self.async_overhead = params['wild_setting']['async_overhead']
-
-            # localization error
             self.loc_err_flag = params['wild_setting']['loc_err']
             self.xyz_noise_std = params['wild_setting']['xyz_std']
             self.ryp_noise_std = params['wild_setting']['ryp_std']
-
-            # transmission data size
-            self.data_size = \
-                params['wild_setting']['data_size'] \
-                    if 'data_size' in params['wild_setting'] else 0
-            self.transmission_speed = \
-                params['wild_setting']['transmission_speed'] \
-                    if 'transmission_speed' in params['wild_setting'] else 27
-            self.backbone_delay = \
-                params['wild_setting']['backbone_delay'] \
-                    if 'backbone_delay' in params['wild_setting'] else 0
-
+            self.data_size = params['wild_setting'].get('data_size', 0)
+            self.transmission_speed = params['wild_setting'].get('transmission_speed', 27)
+            self.backbone_delay = params['wild_setting'].get('backbone_delay', 0)
         else:
             self.async_flag = False
-            self.async_overhead = 0  # ms
+            self.async_overhead = 0
             self.async_mode = 'sim'
             self.loc_err_flag = False
             self.xyz_noise_std = 0
             self.ryp_noise_std = 0
-            self.data_size = 0  # Mb (Megabits)
-            self.transmission_speed = 27  # Mbps
-            self.backbone_delay = 0  # ms
+            self.data_size = 0
+            self.transmission_speed = 27
+            self.backbone_delay = 0
 
-        if self.train:
-            root_dir = params['root_dir']
-        else:
-            root_dir = params['validate_dir']
+        root_dir = params['root_dir'] if self.train else params['validate_dir']
+        self.max_cav = params.get('train_params', {}).get('max_cav', 7)
 
-        if 'train_params' not in params or\
-                'max_cav' not in params['train_params']:
-            self.max_cav = 7
-        else:
-            self.max_cav = params['train_params']['max_cav']
-
-        # first load all paths of different scenarios
-        scenario_folders = sorted([os.path.join(root_dir, x)
-                                   for x in os.listdir(root_dir) if
-                                   os.path.isdir(os.path.join(root_dir, x))])
-        # Structure: {scenario_id : {cav_1 : {timestamp1 : {yaml: path,
-        # lidar: path, cameras:list of path}}}}
+        scenario_folders = sorted([os.path.join(root_dir, x) for x in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, x))])
         self.scenario_database = OrderedDict()
         self.len_record = []
-
         valid_index = 0
-        # loop over all scenarios
+
+        self.uav_flag = False
+        self.only_uav_flag = False
+        self.agc_drive_dict = {}
+
+        if 'fusion' in params:
+            fusion_args = params['fusion']['args']
+            self.uav_flag = fusion_args.get('uav_flag', False)
+            self.only_uav_flag = fusion_args.get('only_uav_flag', False)
+            self.rebuttal_flag = fusion_args.get('rebuttal_flag', False)
+            agc_drive_json_path = os.path.join(root_dir, 'AGC-Drive.json')
+            if os.path.exists(agc_drive_json_path):
+                import json
+                with open(agc_drive_json_path, 'r') as f:
+                    self.agc_drive_dict = json.load(f)
+
         for (_, scenario_folder) in enumerate(scenario_folders):
             if not os.path.isdir(os.path.join(scenario_folder, 'cooperative')):
                 continue
-            self.scenario_database.update({valid_index: OrderedDict()})
-            
-            # at least 1 cav should show up
-            cav_list = sorted([x for x in os.listdir(scenario_folder)
-                               if os.path.isdir(
-                    os.path.join(scenario_folder, x)) and x != '3' and x != 'cooperative'])
-            assert len(cav_list) > 0
+            scenario_cav_database = OrderedDict()
 
-            # print(cav_list)
+            if self.uav_flag:
+                cav_list = sorted([x for x in os.listdir(scenario_folder) if os.path.isdir(os.path.join(scenario_folder, x)) and x != 'cooperative'])
+            else:
+                cav_list = sorted([x for x in os.listdir(scenario_folder) if os.path.isdir(os.path.join(scenario_folder, x)) and x != '3' and x != 'cooperative'])
 
-            # roadside unit data's id is always negative, so here we want to
-            # make sure they will be in the end of the list as they shouldn't
-            # be ego vehicle.
+            if len(cav_list) == 0:
+                continue
+            if self.uav_flag and self.only_uav_flag and len(cav_list) != 3:
+                continue
             if int(cav_list[0]) < 0:
                 cav_list = cav_list[1:] + [cav_list[0]]
 
-            # loop over all CAV data
             for (j, cav_id) in enumerate(cav_list):
                 if j > self.max_cav - 1:
                     print('too many cavs')
                     break
-                self.scenario_database[valid_index][cav_id] = OrderedDict()
-
-                # save all yaml files to the dictionary
                 json_path = os.path.join(scenario_folder, 'cooperative')
                 cav_path = os.path.join(scenario_folder, cav_id)
-
-                # use the frame number as key, the full path as the values
-                yaml_files = \
-                    sorted([os.path.join(json_path, x)
-                            for x in os.listdir(json_path) if
-                            x.endswith('.json') and 'additional' not in x])
+                yaml_files = sorted([os.path.join(json_path, x) for x in os.listdir(json_path) if x.endswith('.json') and 'additional' not in x])
                 timestamps = self.extract_timestamps(yaml_files)
 
-                for timestamp in timestamps:
-                    self.scenario_database[valid_index][cav_id][timestamp] = \
-                        OrderedDict()
-                    
-                    json_file = os.path.join(json_path,
-                                             timestamp + '.json')
-                    yaml_file = os.path.join(cav_path,
-                                             timestamp + '.yaml')
-                    lidar_file = os.path.join(cav_path,
-                                              timestamp + '.pcd')
-                    camera_files = self.load_camera_files(cav_path, timestamp)
+                scenario_name = os.path.basename(scenario_folder)
+                valid_uav_frames = self.agc_drive_dict.get(scenario_name, [])
+                if self.rebuttal_flag:
+                    timestamps = [t for t in timestamps if t in valid_uav_frames]
+                if cav_id == '3':
+                    timestamps = [t for t in timestamps if t in valid_uav_frames]
 
-                    self.scenario_database[valid_index][cav_id][timestamp]['json'] = \
-                        json_file
-                    self.scenario_database[valid_index][cav_id][timestamp]['yaml'] = \
-                        yaml_file
-                    self.scenario_database[valid_index][cav_id][timestamp]['lidar'] = \
-                        lidar_file
-                    self.scenario_database[valid_index][cav_id][timestamp]['camera0'] = \
-                        camera_files
-                # Assume all cavs will have the same timestamps length. Thus
-                # we only need to calculate for the first vehicle in the
-                # scene.
-                if j == 0:#front is the ego
-                    # we regard the agent with the minimum id as the ego
-                    self.scenario_database[valid_index][cav_id]['ego'] = True
-                    if not self.len_record:
-                        self.len_record.append(len(timestamps))
+                if self.uav_flag and self.only_uav_flag:
+                    timestamps = [t for t in timestamps if t in valid_uav_frames]
+                    if len(timestamps) == 0:
+                        continue
                     else:
-                        prev_last = self.len_record[-1]
-                        self.len_record.append(prev_last + len(timestamps))
+                        scenario_cav_database[cav_id] = OrderedDict()
+                        scenario_cav_database[cav_id]['vehicle_id'] = 'agent' + str(cav_id)
                 else:
-                    self.scenario_database[valid_index][cav_id]['ego'] = False
+                    scenario_cav_database[cav_id] = OrderedDict()
+                    scenario_cav_database[cav_id]['vehicle_id'] = 'agent' + str(cav_id)
 
-                    # print(self.scenario_database)
+                for timestamp in timestamps:
+                    scenario_cav_database[cav_id][timestamp] = OrderedDict()
+                    json_file = os.path.join(json_path, timestamp + '.json')
+                    yaml_file = os.path.join(cav_path, timestamp + '.yaml')
+                    lidar_file = os.path.join(cav_path, timestamp + '.pcd')
+                    camera_files = self.load_camera_files(cav_path, timestamp)
+                    scenario_cav_database[cav_id][timestamp]['json'] = json_file
+                    scenario_cav_database[cav_id][timestamp]['yaml'] = yaml_file
+                    scenario_cav_database[cav_id][timestamp]['lidar'] = lidar_file
+                    scenario_cav_database[cav_id][timestamp]['camera0'] = camera_files
+
+                if j == 0 and len(timestamps) > 0:
+                    scenario_cav_database[cav_id]['ego'] = True
+                    # if not self.len_record:
+                    #     self.len_record.append(len(timestamps))
+                    # else:
+                    #     prev_last = self.len_record[-1]
+                    #     self.len_record.append(prev_last + len(timestamps))
+                else:
+                    scenario_cav_database[cav_id]['ego'] = False
+
+            # 统一清洗和对齐 timestamps 部分：
+            if self.uav_flag and self.only_uav_flag:
+                if set(['1', '2', '3']).issubset(set(scenario_cav_database.keys())):
+                    # timestamps_list = [set(scenario_cav_database[cav_id].keys()) - {'ego', 'vehicle_id'} for cav_id in ['1', '2', '3']]
+                    timestamps_list = [set(scenario_cav_database[cav_id].keys()) - {'ego', 'vehicle_id'} for cav_id in ['1', '3']]
+                    common_timestamps = set.intersection(*timestamps_list)
+                    if len(common_timestamps) == 0:
+                        continue
+                    # for cav_id in ['1', '3']:
+                    for cav_id in ['1', '3']:
+                        timestamps = list(scenario_cav_database[cav_id].keys())
+                        for t in timestamps:
+                            if t not in common_timestamps and t not in ['ego', 'vehicle_id']:
+                                del scenario_cav_database[cav_id][t]
+                else:
+                    continue
+            elif self.uav_flag:
+                # 必须至少有车1和车2
+                if '1' in scenario_cav_database and '2' in scenario_cav_database:
+                    # 提取车车的交集作为基础帧
+                    car_timestamps_list = [
+                        set(scenario_cav_database[cav_id].keys()) - {'ego', 'vehicle_id'} 
+                        for cav_id in ['1', '2']
+                    ]
+                    base_common_ts = set.intersection(*car_timestamps_list)
+
+                    # 如果有 UAV 数据，就添加上（可选）
+                    if '3' in scenario_cav_database:
+                        uav_ts = set(scenario_cav_database['3'].keys()) - {'ego', 'vehicle_id'}
+
+                        # 对每帧基础帧：判断是否也有 UAV
+                        for t in list(base_common_ts):
+                            for cav_id in ['1', '2']:
+                                if t not in scenario_cav_database[cav_id]:
+                                    continue
+                            if t not in uav_ts:
+                                # 没有 UAV，这一帧只保留车1、2
+                                scenario_cav_database.pop('3', None)  # 如果 UAV 没有这一帧，就删掉 UAV 的 t
+                            # else: UAV 有这个 t，可以留下
+
+                        # 只保留车和 UAV 的共同帧（车车为基础，UAV 有则加）
+                        expected_cavs = ['1', '2']
+                        if '3' in scenario_cav_database:
+                            expected_cavs.append('3')
+
+                        # 过滤掉每个 agent 中不在 base_common_ts 的帧
+                        for cav_id in expected_cavs:
+                            timestamps = list(scenario_cav_database[cav_id].keys())
+                            for t in timestamps:
+                                if t not in base_common_ts and t not in ['ego', 'vehicle_id']:
+                                    del scenario_cav_database[cav_id][t]
+
+                        # 保留 expected_cavs
+                        scenario_cav_database = {k: scenario_cav_database[k] for k in expected_cavs}
+
+                    else:
+                        # 没有 UAV，车车照常对齐
+                        for cav_id in ['1', '2']:
+                            timestamps = list(scenario_cav_database[cav_id].keys())
+                            for t in timestamps:
+                                if t not in base_common_ts and t not in ['ego', 'vehicle_id']:
+                                    del scenario_cav_database[cav_id][t]
+                        scenario_cav_database = {k: scenario_cav_database[k] for k in ['1', '2']}
+
+                else:
+                    # 没有车1+2就不处理
+                    continue 
+            else:
+                if '1' in scenario_cav_database and '2' in scenario_cav_database:
+                    expected_cavs = ['1', '2']
+                    timestamps_list = [set(scenario_cav_database[cav_id].keys()) - {'ego', 'vehicle_id'} for cav_id in expected_cavs]
+                    common_timestamps = set.intersection(*timestamps_list)
+                    if len(common_timestamps) == 0:
+                        continue
+                    for cav_id in expected_cavs:
+                        timestamps = list(scenario_cav_database[cav_id].keys())
+                        for t in timestamps:
+                            if t not in common_timestamps and t not in ['ego', 'vehicle_id']:
+                                del scenario_cav_database[cav_id][t]
+                    scenario_cav_database = {k: scenario_cav_database[k] for k in expected_cavs}
+                else:
+                    continue
+
+            self.scenario_database.update({valid_index: scenario_cav_database})
+
+            if len(scenario_cav_database) > 0:
+                num_timestamps = len(next(iter(scenario_cav_database.values())).keys()) - 2  # 减去 'ego' 和 'vehicle_id'
+                if not self.len_record:
+                    self.len_record.append(num_timestamps)
+                else:
+                    prev_last = self.len_record[-1]
+                    self.len_record.append(prev_last + num_timestamps)
+
             valid_index += 1
+
 
     def __len__(self):
         return self.len_record[-1]
@@ -256,6 +328,7 @@ class BaseDataset(Dataset):
         for cav_id, cav_content in scenario_database.items():
             data[cav_id] = OrderedDict()
             data[cav_id]['ego'] = cav_content['ego']
+            # data[cav_id]['vehicle_id'] = cav_id
 
             # calculate delay for this vehicle
             timestamp_delay = \
@@ -324,6 +397,7 @@ class BaseDataset(Dataset):
         """
         # get all timestamp keys
         timestamp_keys = list(scenario_database.items())[0][1]
+        timestamp_keys = OrderedDict((k, v) for k, v in timestamp_keys.items() if k != 'vehicle_id')
         # retrieve the correct index
         timestamp_key = list(timestamp_keys.items())[timestamp_index][0]
 
@@ -335,28 +409,30 @@ class BaseDataset(Dataset):
         """
         ego_lidar_pose = None
         ego_cav_content = None
-        # Find ego pose first
         for cav_id, cav_content in scenario_database.items():
             if cav_content['ego']:
                 ego_cav_content = cav_content
-                ego_lidar_pose = \
-                    load_yaml(cav_content[timestamp_key]['yaml'])['lidar_pose']
+                # print(f"Debug: timestamp_key = {timestamp_key}")
+                assert cav_content[timestamp_key] is not None
+                assert not isinstance(cav_content[timestamp_key], str), f"{timestamp_key}的数据类型是 {type(cav_content[timestamp_key])}, 内容是：{cav_content[timestamp_key]}"
+                # print(f"Debug: cav_content[{timestamp_key}] = {type(cav_content[timestamp_key])}")
+                # print(f"Debug: cav_content[{timestamp_key}] = {cav_content[timestamp_key]}")
+                # print(f"Debug: 尝试加载 YAML from {cav_content[timestamp_key].get('yaml', '无 yaml 键')}")
+                # print(load_yaml(cav_content[timestamp_key]['yaml']))
+                ego_lidar_pose = load_yaml(cav_content[timestamp_key]['yaml'])['lidar_pose']
                 break
-
+            
         assert ego_lidar_pose is not None
-
-        # calculate the distance
+    
         for cav_id, cav_content in scenario_database.items():
-            cur_lidar_pose = \
-                load_yaml(cav_content[timestamp_key]['yaml'])['lidar_pose']
-            # print(ego_lidar_pose)
-            distance = \
-                math.sqrt((cur_lidar_pose[0] -
-                           ego_lidar_pose[0]) ** 2 +
-                          (cur_lidar_pose[1] - ego_lidar_pose[1]) ** 2)
+            if timestamp_key not in cav_content or not isinstance(cav_content[timestamp_key], dict):
+                continue  # 跳过像 'vehicle_id' 或无效时间戳的键
+            cur_lidar_pose = load_yaml(cav_content[timestamp_key]['yaml'])['lidar_pose']
+            distance = math.sqrt((cur_lidar_pose[0] - ego_lidar_pose[0]) ** 2 +
+                                 (cur_lidar_pose[1] - ego_lidar_pose[1]) ** 2)
             cav_content['distance_to_ego'] = distance
             scenario_database.update({cav_id: cav_content})
-
+    
         return ego_cav_content
 
     def time_delay_calculation(self, ego_flag):
@@ -504,9 +580,12 @@ class BaseDataset(Dataset):
                 gt_transformation_matrix
         else:
             delay_params['vehicles'] = vehicles
-            delay_params['transformation_matrix'] = np.array(delay_json[0]["pairwise_t_matrix1"])
-            delay_params['gt_transformation_matrix'] = \
-                np.array(cur_json[0]["pairwise_t_matrix1"])
+            if self.uav_flag and str(cav_content['vehicle_id']) == 'agent3':
+                delay_params['transformation_matrix'] = np.array(delay_json[1]["adjusted_pairwise_t_matrix2"])
+                delay_params['gt_transformation_matrix'] = np.array(cur_json[1]["adjusted_pairwise_t_matrix2"])
+            else:
+                delay_params['transformation_matrix'] = np.array(delay_json[0]["adjusted_pairwise_t_matrix1"])
+                delay_params['gt_transformation_matrix'] = np.array(cur_json[0]["adjusted_pairwise_t_matrix1"])
         delay_params['spatial_correction_matrix'] = spatial_correction_matrix
 
         return delay_params
@@ -517,13 +596,16 @@ class BaseDataset(Dataset):
         vehicles = {}
         
         for obj in objects:
-             # 判断类型是否是 3D_BOX
-            # if obj.get('type') != 'car':
-            #     continue
-            # if obj.get('className') != None:
-            #     continue
-            # print(obj)
+            if not (
+                (obj.get('className') and obj.get('className').lower() == 'car') or
+                (not obj.get('className') and obj.get('modelClass') and obj.get('modelClass').lower() == 'car')
+            ):
+                continue
+            if obj.get('type') != '3D_BOX':
+                continue
             track_name = obj['trackName']
+            if track_name is None:
+                track_name = str(random.randint(100, 999))
             contour = obj['contour']
             if contour is None:
                 continue  # 或者打个 warning log，或者根据需要补个默认值

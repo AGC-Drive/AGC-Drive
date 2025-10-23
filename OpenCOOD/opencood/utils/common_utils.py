@@ -10,6 +10,7 @@ Common utilities
 import numpy as np
 import torch
 from shapely.geometry import Polygon
+import math
 
 
 def check_numpy_to_torch(x):
@@ -200,3 +201,25 @@ def get_voxel_centers(voxel_coords,
     pc_range = torch.tensor(point_cloud_range[0:3], device=voxel_centers.device).float()
     voxel_centers = (voxel_centers + 0.5) * voxel_size + pc_range
     return voxel_centers
+
+def cav_distance_cal(selected_cav_base, ego_lidar_pose):
+    """
+    Calculate a certain cav's distance to the ego vehicle,
+
+    Parameters
+    ----------
+    selected_cav_base : dict
+    ego_lidar_pose : list
+
+    Returns
+    -------
+    The distance of this two vehicle (float);
+    """
+    distance = \
+        math.sqrt((selected_cav_base['params']['lidar_pose'][0] -
+                   ego_lidar_pose[0]) ** 2 + (
+                          selected_cav_base['params'][
+                              'lidar_pose'][1] - ego_lidar_pose[
+                              1]) ** 2)
+
+    return distance

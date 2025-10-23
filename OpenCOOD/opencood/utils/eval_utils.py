@@ -174,3 +174,57 @@ def eval_final_results(result_stat, save_path, global_sort_detections):
     print('The Average Precision at IOU 0.3 is %.2f, '
           'The Average Precision at IOU 0.5 is %.2f, '
           'The Average Precision at IOU 0.7 is %.2f' % (ap_30, ap_50, ap_70))
+
+import numpy as np
+
+
+def estimate_yaw_from_corners(corners):
+    """
+    Estimate yaw from 8 corners (shape: [8, 3])
+    """
+    front_left = corners[0]
+    front_right = corners[1]
+    dx = front_right[0] - front_left[0]
+    dy = front_right[1] - front_left[1]
+    yaw = np.arctan2(dy, dx)
+    return yaw
+
+
+def calculate_ate_aoe(pred_box_tensor, gt_box_tensor, ate_aoe_stat):
+    """
+    Args:
+        pred_box_tensor: (N, 8, 3) predicted boxes in corner format
+        gt_box_tensor: (N, 8, 3) ground truth boxes
+        ate_aoe_stat: dict with keys 'ate' and 'aoe', both list
+        
+    This function updates ate_aoe_stat in place.
+    """
+    if pred_box_tensor is None or gt_box_tensor is None:
+        return
+    if pred_box_tensor.shape[0] == 0 or gt_box_tensor.shape[0] == 0:
+        return
+    if pred_box_tensor.shape[0] == 0 or gt_box_tensor.shape[0] == 0:
+        return
+
+    pred_boxes = pred_box_tensor.cpu().numpy()
+    gt_boxes = gt_box_tensor.cpu().numpy()
+
+    num = min(len(pred_boxes), len(gt_boxes))
+    for i in range(num):
+        pred = pred_boxes[i]
+        gt = gt_boxes[i]
+
+        # ATE: center distance
+        center_pred = np.mean(pred, axis=0)
+        center_gt = np.mean(gt, axis=0)
+        ate = np.linalg.norm(center_pred - center_gt)
+        ate_aoe_stat['ate'].append(ate)
+
+        # AOE: orientation difference
+        yaw_pred = estimate_yaw_from_corners(pred)
+        yaw_gt = estimate_yaw_from_corners(gt)
+        delta_yaw = abs(yaw_pred - yaw_gt)
+        aoe = min(delta_yaw, 2 * np.pi - delta_yaw)
+        ate_aoe_stat['aoe'].append(aoe)
+
+

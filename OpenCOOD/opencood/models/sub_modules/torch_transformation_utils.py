@@ -420,6 +420,16 @@ class Test:
         plt.matshow(mask[0, :, :, 0, 0])
         plt.show()
 
+def warp_affine_simple(src, M, dsize,
+        mode='bilinear',
+        padding_mode='zeros',
+        align_corners=False):
+
+    B, C, H, W = src.size()
+    grid = F.affine_grid(M,
+                         [B, C, dsize[0], dsize[1]],
+                         align_corners=align_corners).to(src)
+    return F.grid_sample(src, grid, align_corners=align_corners)
 
 if __name__ == "__main__":
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'

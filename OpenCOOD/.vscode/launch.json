@@ -14,3 +14,27 @@
         }
     ]
 }
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+//         {
+//             "name": "Python: 分布式训练 OpenCOOD (debugpy)",
+//             "type": "debugpy",
+//             "request": "launch",
+//             "program": "/home/beikh/miniconda3/envs/opencood/lib/python3.7/site-packages/torch/distributed/launch.py",
+//             "console": "integratedTerminal",
+//             "args": [
+//                 "--nproc_per_node=8",
+//                 "--master_port=29509",
+//                 "--use_env",
+//                 "opencood/tools/train.py",
+//                 "--hypes_yaml",
+//                 "opencood/hypes_yaml/point_pillar_v2vnet.yaml"
+//             ],
+//             "env": {
+//                 "CUDA_VISIBLE_DEVICES": "0,1,2,3,4,5,6,7"
+//             }
+//         }
+//     ]
+// }
+

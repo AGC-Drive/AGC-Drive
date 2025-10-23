@@ -1,6 +1,8 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+import os
 
 def draw_box_plt(boxes_dec, ax, color=None, linewidth_scale=1.0):
     """
@@ -65,3 +67,25 @@ def draw_points_boxes_plt_2d(ax, pc_range, points=None, boxes=None, color=None):
         ax = draw_box_plt(boxes, ax, color=color)
 
     return ax
+
+
+def save_feature_map(feature, save_path, prefix="feat"):
+    """
+    保存特征图，每个channel保存一张灰度图
+    :param feature: tensor, shape [B, C, H, W]
+    :param save_path: str, 保存目录
+    :param prefix: str, 文件名前缀
+    """
+    os.makedirs(save_path, exist_ok=True)
+    feature = feature.detach().cpu().numpy()  # 转 numpy
+    B, C, H, W = feature.shape
+    for b in range(B):
+        for c in range(C):
+            fig = plt.figure(frameon=False)
+            ax = plt.Axes(fig, [0., 0., 1., 1.])  # 无边框
+            ax.set_axis_off()
+            fig.add_axes(ax)
+            ax.imshow(feature[b, c, :, :], cmap='viridis')
+            plt.savefig(os.path.join(save_path, f"{prefix}_b{b}_c{c}.png"),
+                        bbox_inches='tight', pad_inches=0)
+            plt.close(fig)

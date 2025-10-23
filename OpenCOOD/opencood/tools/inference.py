@@ -7,7 +7,7 @@ import argparse
 import os
 import time
 from tqdm import tqdm
-
+import numpy as np
 import torch
 import open3d as o3d
 from torch.utils.data import DataLoader
@@ -82,6 +82,7 @@ def main():
     result_stat = {0.3: {'tp': [], 'fp': [], 'gt': 0, 'score': []},                
                    0.5: {'tp': [], 'fp': [], 'gt': 0, 'score': []},                
                    0.7: {'tp': [], 'fp': [], 'gt': 0, 'score': []}}
+    ate_aoe_stat = {'ate': [], 'aoe': []}
 
     if opt.show_sequence:
         vis = o3d.visualization.Visualizer()
@@ -138,6 +139,10 @@ def main():
                                        gt_box_tensor,
                                        result_stat,
                                        0.7)
+            eval_utils.calculate_ate_aoe(pred_box_tensor,
+                                         gt_box_tensor,
+                                         ate_aoe_stat)
+
             if opt.save_npy:
                 npy_save_path = os.path.join(opt.model_dir, 'npy')
                 if not os.path.exists(npy_save_path):
@@ -202,6 +207,15 @@ def main():
                                   opt.global_sort_detections)
     if opt.show_sequence:
         vis.destroy_window()
+    
+    if len(ate_aoe_stat['ate']) > 0:
+        mean_ate = np.mean(ate_aoe_stat['ate'])
+        mean_aoe = np.mean(ate_aoe_stat['aoe'])
+        print(f"\n===================== ATE / AOE =====================")
+        print(f"Average Translation Error (ATE): {mean_ate:.4f} meters")
+        print(f"Average Orientation Error (AOE): {np.degrees(mean_aoe):.2f} degrees")
+    else:
+        print("\nNo matched prediction-GT pairs for ATE/AOE calculation.")
 
 
 if __name__ == '__main__':

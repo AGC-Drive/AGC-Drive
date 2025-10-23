@@ -1,6 +1,6 @@
-name: point_pillar_where2comm
-root_dir: '/data/datasets/TriCo3D/train'
-validate_dir: '/data/datasets/TriCo3D/train'
+name: point_pillar_where2comm_vfinal
+root_dir: '/data/datasets/AGC-Drive/train'
+validate_dir: '/data/datasets/AGC-Drive/test'
 
 
 wild_setting:
@@ -17,15 +17,18 @@ wild_setting:
 
 yaml_parser: 'load_point_pillar_params'
 train_params:
-  batch_size: &batch_size 1
-  epoches: &epoches 50
+  batch_size: &batch_size 4
+  epoches: &epoches 60
   eval_freq: 1
   save_freq: 1
   max_cav: &max_cav 5
 
 fusion:
   core_method: 'IntermediateFusionDataset'  # LateFusionDataset, EarlyFusionDataset, IntermediateFusionDataset supported
-  args: [ ]
+  args: 
+    uav_flag : false
+    only_uav_flag : false
+    rebuttal_flag : false
 
 # Preprocess-related
 preprocess:

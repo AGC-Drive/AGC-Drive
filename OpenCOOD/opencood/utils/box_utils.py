@@ -281,6 +281,9 @@ def project_box3d(box3d, transformation_matrix):
     projected_box3d : torch.Tensor
         The projected bounding box, (N, 8, 3)
     """
+    transformation_matrix = \
+        torch.from_numpy(np.identity(4)).float().cuda()
+    
     assert transformation_matrix.shape == (4, 4)
     box3d, is_numpy = \
         common_utils.check_numpy_to_torch(box3d)

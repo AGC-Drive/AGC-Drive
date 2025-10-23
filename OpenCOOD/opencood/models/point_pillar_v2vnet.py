@@ -11,6 +11,7 @@ from opencood.models.sub_modules.base_bev_backbone import BaseBEVBackbone
 from opencood.models.sub_modules.downsample_conv import DownsampleConv
 from opencood.models.sub_modules.naive_compress import NaiveCompressor
 from opencood.models.fuse_modules.v2v_fuse import V2VNetFusion
+from opencood.utils.visulizor import save_feature_map
 
 
 class PointPillarV2VNet(nn.Module):
@@ -45,6 +46,9 @@ class PointPillarV2VNet(nn.Module):
                                   kernel_size=1)
         if args['backbone_fix']:
             self.backbone_fix()
+
+        self.debug = args['debug']
+        self.save_path = 'vis_feature'
 
     def backbone_fix(self):
         """
@@ -90,6 +94,8 @@ class PointPillarV2VNet(nn.Module):
         batch_dict = self.backbone(batch_dict)
 
         spatial_features_2d = batch_dict['spatial_features_2d']
+        if self.debug:
+            save_feature_map(spatial_features_2d, self.save_path, prefix="spatial")
         # downsample feature to reduce memory
         if self.shrink_flag:
             spatial_features_2d = self.shrink_conv(spatial_features_2d)
@@ -99,6 +105,8 @@ class PointPillarV2VNet(nn.Module):
         fused_feature = self.fusion_net(spatial_features_2d,
                                         record_len,
                                         pairwise_t_matrix)
+        if self.debug:
+            save_feature_map(fused_feature, self.save_path, prefix="fused")
 
         psm = self.cls_head(fused_feature)
         rm = self.reg_head(fused_feature)

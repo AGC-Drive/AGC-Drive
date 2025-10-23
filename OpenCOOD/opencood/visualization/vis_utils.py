@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import open3d as o3d
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from matplotlib import cm
@@ -276,7 +277,7 @@ def visualize_single_sample_output_gt(pred_tensor,
         Color rendering mode.
     """
 
-    def custom_draw_geometry(pcd, pred, gt):
+    def custom_draw_geometry(pcd, pred):
         vis = o3d.visualization.Visualizer()
         vis.create_window()
 
@@ -287,8 +288,8 @@ def visualize_single_sample_output_gt(pred_tensor,
         vis.add_geometry(pcd)
         for ele in pred:
             vis.add_geometry(ele)
-        for ele in gt:
-            vis.add_geometry(ele)
+        # for ele in gt:
+        #     vis.add_geometry(ele)
 
         vis.run()
         vis.destroy_window()

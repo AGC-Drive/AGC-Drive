@@ -1,6 +1,6 @@
-name: corpbevtlidar
-root_dir: 'v2xset/train'
-validate_dir: 'v2xset/validate'
+name: corpbevtlidar_v2v_vfinal
+root_dir: '/data/datasets/AGC-Drive/train'
+validate_dir: '/data/datasets/AGC-Drive/test'
 
 wild_setting:
   async: false
@@ -16,14 +16,17 @@ wild_setting:
 yaml_parser: "load_point_pillar_params"
 train_params:
   batch_size: &batch_size 4
-  epoches: &epoches 90
+  epoches: &epoches 60
   eval_freq: 2
   save_freq: 1
   max_cav: &max_cav 5
 
 fusion:
   core_method: 'IntermediateFusionDataset' # LateFusionDataset, EarlyFusionDataset, IntermediateFusionDataset supported
-  args: []
+  args:
+    uav_flag : false
+    only_uav_flag : false
+    rebuttal_flag : false
 
 # preprocess-related
 preprocess:

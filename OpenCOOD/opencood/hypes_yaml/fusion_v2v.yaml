@@ -1,0 +1,201 @@
+name: fusion_v2vnet
+root_dir: '/data/datasets/AGC-Drive/train'
+validate_dir: '/data/datasets/AGC-Drive/test'
+
+yaml_parser: "load_point_pillar_params"
+train_params:
+  batch_size: &batch_size 6
+  epoches: 50
+  eval_freq: 2
+  save_freq: 2
+  max_cav: &max_cav 5
+  visible: false
+
+wild_setting:
+  async: false
+  async_overhead: 100
+  seed: 20
+  loc_err: false
+  xyz_std: 0.2
+  ryp_std: 0.2
+  data_size: 1.06 # Mb!!
+  transmission_speed: 27 # Mbps!!
+  backbone_delay: 10 # ms
+
+fusion:
+  core_method: 'CamIntermediateFusionDataset' # LateFusionDataset, EarlyFusionDataset, IntermediateFusionDataset supported
+  args:
+    proj_first: true
+    cur_ego_pose_flag : true
+    uav_flag : false
+    only_uav_flag : false
+    rebuttal_flag : false
+
+# preprocess-related
+preprocess:
+  # options: BasePreprocessor, VoxelPreprocessor, BevPreprocessor
+  core_method: 'RgbPreprocessor'
+  args:
+    bgr2rgb: true
+    resize_x: &image_width 512
+    resize_y: &image_height 512
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+    voxel_size: &voxel_size [0.4, 0.4, 4]
+    max_points_per_voxel: 32
+    max_voxel_train: 32000
+    max_voxel_test: 70000
+  cav_lidar_range: &cav_lidar [-140.8, -40, -3, 140.8, 40, 1]
+
+data_augment:
+  - NAME: random_world_flip
+    ALONG_AXIS_LIST: [ 'x' ]
+
+  - NAME: random_world_rotation
+    WORLD_ROT_ANGLE: [ -0.78539816, 0.78539816 ]
+
+  - NAME: random_world_scaling
+    WORLD_SCALE_RANGE: [ 0.95, 1.05 ]
+
+  - NAME: random_world_translation
+    NOISE_STD: [0.5, 0.5, 0.0]  # xy 方向扰动
+
+
+# anchor box related
+postprocess:
+  core_method: 'VoxelPostprocessor' # VoxelPostprocessor, BevPostprocessor supported
+  anchor_args:
+    cav_lidar_range: *cav_lidar
+    l: 3.9
+    w: 1.9
+    h: 1.56
+    r: [0, 90, 180, 270]
+    feature_stride: 4
+    num: &achor_num 4
+  target_args:
+    pos_threshold: 0.30
+    neg_threshold: 0.10
+    score_threshold: 0.20
+  order: 'hwl' # hwl or lwh
+  max_num: 70 # maximum number of objects in a single frame. use this number to make sure different frames has the same dimension in the same batch
+  nms_thresh: 0.15
+
+# model related
+model:
+  core_method: fusion_v2vnet
+  args:
+    voxel_size: *voxel_size
+    lidar_range: *cav_lidar
+    anchor_number: *achor_num
+    max_cav: *max_cav
+    compression: 0 # compression rate
+    backbone_fix: true
+    debug: false
+    target: &target 'dynamic' # dynamic, static or both
+
+    encoder:
+      num_layers: 34
+      pretrained: true
+      image_width: *image_width
+      image_height: *image_height
+      id_pick: [1, 3]
+
+    decoder:
+      input_dim: 128
+      num_layer: 3
+      num_ch_dec: &decoder_block [32, 64, 128]
+
+    sttf: &sttf
+      resolution: 0.390625 # m/pixel
+      downsample_rate: 8
+      use_roi_mask: true
+
+    pillar_vfe:
+      use_norm: true
+      with_distance: false
+      use_absolute_xyz: true
+      num_filters: [64]
+    point_pillar_scatter:
+      num_features: 64
+
+    base_bev_backbone:
+      layer_nums: [3, 5, 8]
+      layer_strides: [2, 2, 2]
+      num_filters: [64, 128, 256]
+      upsample_strides: [1, 2, 4]
+      num_upsample_filter: [128, 128, 128]
+    shrink_header:
+      kernal_size: [ 3 ]
+      stride: [ 2 ]
+      padding: [ 1 ]
+      dim: [ 256 ]
+      input_dim: 384 # 128 * 3
+
+    v2vfusion:
+      voxel_size: *voxel_size
+      downsample_rate: 4
+      num_iteration: 2
+      in_channels: 256
+      gru_flag: true
+      agg_operator: "avg" # max or avg
+      conv_gru:
+        H: 50
+        W: 176
+        num_layers: 1
+        kernel_size: [[3,3]]
+
+    v2vnet_fusion:
+      resolution: 0.390625 # m/pixel
+      downsample_rate: 8
+      num_iteration: 3
+      in_channels: 128
+      gru_flag: true
+      agg_operator: "avg" # max or avg
+      conv_gru:
+        H: 32
+        W: 32
+        num_layers: 1
+        kernel_size: [[3,3]]
+    cvm:
+      dim: 128 # b, d, h w from resenet -> b 256 h w
+      middle: [2, 2] # middle conv
+      bev_embedding:
+        sigma: 1.0
+        bev_height: 256
+        bev_width: 256
+        h_meters: 100
+        w_meters: 100
+        offset: 0.0
+        decoder_blocks: *decoder_block
+
+      cross_view: #cross_view attention
+        image_height: *image_height
+        image_width: *image_width
+        no_image_features: False
+        skip: True
+        heads: 4
+        dim_head: 32
+        qkv_bias: True
+
+    seg_head_dim: 32
+    output_class: 2
+
+loss:
+  core_method: point_pillar_loss
+  args:
+    cls_weight: 3.0
+    reg: 2.0
+
+optimizer:
+  core_method: Adam
+  lr: 0.001
+  args:
+    eps: 1e-10
+    weight_decay: 1e-4
+
+lr_scheduler:
+  core_method: multistep #step, multistep and Exponential support
+  gamma: 0.1
+  step_size: [10, 50, 80]
+
+
