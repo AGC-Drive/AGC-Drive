@@ -135,6 +135,6 @@ logs/
 .idea
 
 opv2v_data_dumping
-checkpoints
+# checkpoints
 DCOS.md
 spconv/
