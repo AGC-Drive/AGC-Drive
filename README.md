@@ -51,14 +51,68 @@ Data was gathered across various urban and highway driving scenarios with hardwa
 
 We evaluate AGC-Drive with the following baseline models:
 
-| Method             | Type                     | Description | configuration file| Model weights|
-|:------------------|:-------------------------|:-----------------------------------------------------------|:-------------|:-------------|
-| **Upper-bound**     | Early Fusion              | Shares raw point cloud data before feature extraction.      |[`early_fusion`](./OpenCOOD/opencood/hypes_yaml/pixor_early_fusion.yaml)|
-| **Lower-bound**     | Late Fusion               | Independently detects and shares detection results.         |[`late_fusion`](./OpenCOOD/opencood/hypes_yaml/pixor_late_fusion.yaml)|
-| **V2VNet**          | Intermediate Fusion       | Multi-agent detection via intermediate feature fusion.      |[`point_pillar_v2vnet`](./OpenCOOD/opencood/hypes_yaml/point_pillar_v2vnet.yaml)|
-| **CoBEVT**          | Intermediate Fusion (BEV) | Sparse Transformer BEV fusion with FAX module.              |[`point_pillar_cobevt`](./OpenCOOD/opencood/hypes_yaml/point_pillar_cobevt.yaml)|
-| **Where2comm**      | Communication-efficient   | Shares sparse, critical features guided by confidence maps. |[`point_pillar_where2comm`](./OpenCOOD/opencood/hypes_yaml/point_pillar_where2comm.yaml)|
-| **V2X-ViT**         | Transformer-based Fusion  | BEV feature fusion via attention mechanisms.                |[`point_pillar_v2xvit`](./OpenCOOD/opencood/hypes_yaml/point_pillar_v2xvit.yaml)|
+<table>
+  <tr>
+    <th rowspan="2">Method</th>
+    <th rowspan="2">Type</th>
+    <th rowspan="2">Description</th>
+    <th rowspan="2">Configuration file</th>
+    <th colspan="2">Model weights</th>
+  </tr>
+  <tr>
+    <th>V2V</th>
+    <th>VUC</th>
+  </tr>
+  <tr>
+    <td><b>Early</b></td>
+    <td>Early Fusion</td>
+    <td>Shares raw point cloud data before feature extraction.</td>
+    <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/pixor_early_fusion.yaml">early_fusion</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/early.pth">early</a></td>
+    <td align="center">/</td>
+  </tr>
+  <tr>
+    <td><b>Late</b></td>
+    <td>Late Fusion</td>
+    <td>Independently detects and shares detection results.</td>
+    <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/pixor_late_fusion.yaml">late_fusion</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/late.pth">late</a></td>
+    <td align="center">/</td>
+  </tr>
+  <tr>
+    <td><b>V2VNet</b></td>
+    <td>Intermediate Fusion</td>
+    <td>Multi-agent detection via intermediate feature fusion.</td>
+    <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/point_pillar_v2vnet.yaml">point_pillar_v2vnet</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/v2vnet.pth">v2vnet</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/vuc/UAV/v2vnet.pth">UAV</a> <a href="./OpenCOOD/opencood/checkpoints/vuc/NoUAV/v2vnet.pth">NoUAV</a></td>
+  </tr>
+  <tr>
+    <td><b>CoBEVT</b></td>
+    <td>Intermediate Fusion (BEV)</td>
+    <td>Sparse Transformer BEV fusion with FAX module.</td>
+    <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/point_pillar_cobevt.yaml">point_pillar_cobevt</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/cobevt.pth">cobevt</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/vuc/UAV/cobevt.pth">UAV</a> <a href="./OpenCOOD/opencood/checkpoints/vuc/NoUAV/cobevt.pth">NoUAV</a></td>
+  </tr>
+  <tr>
+    <td><b>Where2comm</b></td>
+    <td>Communication-efficient</td>
+    <td>Shares sparse, critical features guided by confidence maps.</td>
+    <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/point_pillar_where2comm.yaml">point_pillar_where2comm</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/where2comm.pth">where2comm</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/vuc/UAV/where2comm.pth">UAV</a> <a href="./OpenCOOD/opencood/checkpoints/vuc/NoUAV/where2comm.pth">NoUAV</a></td>
+  </tr>
+  <tr>
+    <td><b>V2X-ViT</b></td>
+    <td>Transformer-based Fusion</td>
+    <td>BEV feature fusion via attention mechanisms.</td>
+    <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/point_pillar_v2xvit.yaml">point_pillar_v2xvit</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/v2xvit.pth">v2xvit</a></td>
+    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/vuc/UAV/v2xvit.pth">UAV</a> <a href="./OpenCOOD/opencood/checkpoints/vuc/NoUAV/v2xvit.pth">NoUAV</a></td>
+  </tr>
+</table>
+
 
 ---
 
