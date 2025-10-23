@@ -1,5 +1,10 @@
 # AGC-Drive: A Large-Scale Dataset for Real-World Aerial-Ground Collaboration in Driving Scenarios
 
+[![Website](https://img.shields.io/badge/Website-Explore%20Now-blueviolet?style=flat&logo=google-chrome)](https://agc-drive.github.io/) 
+[![Paper](https://img.shields.io/badge/NeurIPS2025-Paper-blue?style=flat&logo=bookstack)]() 
+[![Supplement](https://img.shields.io/badge/Supplementary-Material-red?style=flat&logo=bookstack)]() 
+[![Video](https://img.shields.io/badge/Video-Presentation-F9D371?style=flat&logo=youtube)]()
+
 **AGC-Drive** is a large-scale, real-world dataset developed to advance autonomous driving research with aerial-ground collaboration. It enables multi-agent information sharing to overcome challenges such as occlusion and limited perception range, improving perception accuracy in complex driving environments.
 
 While existing datasets often focus on vehicle-to-vehicle (V2V) or vehicle-to-infrastructure (V2I) collaboration, **AGC-Drive innovatively incorporates aerial views from unmanned aerial vehicles (UAVs)**. This integration provides dynamic, top-down perspectives that effectively reduce occlusion issues and allow monitoring of large-scale interactive scenarios.
