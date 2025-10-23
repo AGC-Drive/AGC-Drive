@@ -68,7 +68,7 @@ We evaluate AGC-Drive with the following baseline models:
     <td>Early Fusion</td>
     <td>Shares raw point cloud data before feature extraction.</td>
     <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/pixor_early_fusion.yaml">early_fusion</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/early.pth">early</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/v2v/early.pth">early</a></td>
     <td align="center">/</td>
   </tr>
   <tr>
@@ -76,7 +76,7 @@ We evaluate AGC-Drive with the following baseline models:
     <td>Late Fusion</td>
     <td>Independently detects and shares detection results.</td>
     <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/pixor_late_fusion.yaml">late_fusion</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/late.pth">late</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/v2v/late.pth">late</a></td>
     <td align="center">/</td>
   </tr>
   <tr>
@@ -84,32 +84,32 @@ We evaluate AGC-Drive with the following baseline models:
     <td>Intermediate Fusion</td>
     <td>Multi-agent detection via intermediate feature fusion.</td>
     <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/point_pillar_v2vnet.yaml">point_pillar_v2vnet</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/v2vnet.pth">v2vnet</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/vuc/UAV/v2vnet.pth">UAV</a> <a href="./OpenCOOD/opencood/checkpoints/vuc/NoUAV/v2vnet.pth">NoUAV</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/v2v/v2vnet.pth">v2vnet</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/vuc/UAV/v2vnet.pth">UAV</a> <a href="./OpenCOOD/checkpoints/vuc/NoUAV/v2vnet.pth">NoUAV</a></td>
   </tr>
   <tr>
     <td><b>CoBEVT</b></td>
     <td>Intermediate Fusion (BEV)</td>
     <td>Sparse Transformer BEV fusion with FAX module.</td>
     <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/point_pillar_cobevt.yaml">point_pillar_cobevt</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/cobevt.pth">cobevt</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/vuc/UAV/cobevt.pth">UAV</a> <a href="./OpenCOOD/opencood/checkpoints/vuc/NoUAV/cobevt.pth">NoUAV</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/v2v/cobevt.pth">cobevt</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/vuc/UAV/cobevt.pth">UAV</a> <a href="./OpenCOOD/checkpoints/vuc/NoUAV/cobevt.pth">NoUAV</a></td>
   </tr>
   <tr>
     <td><b>Where2comm</b></td>
     <td>Communication-efficient</td>
     <td>Shares sparse, critical features guided by confidence maps.</td>
     <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/point_pillar_where2comm.yaml">point_pillar_where2comm</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/where2comm.pth">where2comm</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/vuc/UAV/where2comm.pth">UAV</a> <a href="./OpenCOOD/opencood/checkpoints/vuc/NoUAV/where2comm.pth">NoUAV</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/v2v/where2comm.pth">where2comm</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/vuc/UAV/where2comm.pth">UAV</a> <a href="./OpenCOOD/checkpoints/vuc/NoUAV/where2comm.pth">NoUAV</a></td>
   </tr>
   <tr>
     <td><b>V2X-ViT</b></td>
     <td>Transformer-based Fusion</td>
     <td>BEV feature fusion via attention mechanisms.</td>
     <td align="center"><a href="./OpenCOOD/opencood/hypes_yaml/point_pillar_v2xvit.yaml">point_pillar_v2xvit</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/v2v/v2xvit.pth">v2xvit</a></td>
-    <td align="center"><a href="./OpenCOOD/opencood/checkpoints/vuc/UAV/v2xvit.pth">UAV</a> <a href="./OpenCOOD/opencood/checkpoints/vuc/NoUAV/v2xvit.pth">NoUAV</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/v2v/v2xvit.pth">v2xvit</a></td>
+    <td align="center"><a href="./OpenCOOD/checkpoints/vuc/UAV/v2xvit.pth">UAV</a> <a href="./OpenCOOD/checkpoints/vuc/NoUAV/v2xvit.pth">NoUAV</a></td>
   </tr>
 </table>
 
